@@ -1,0 +1,98 @@
+#!/bin/bash
+
+config_file="$1"
+
+if [ -z "$config_file" ]; then
+  exit 84
+fi
+
+if [ ! -s "$config_file" ]; then
+  exit 84
+fi
+
+if [ -d "$config_file" ]; then
+  exit 84
+fi
+
+CC=$(awk -F";" '$1== "CC" { print $2 }' "$config_file")
+SRC=$(awk -F";" '$1== "SRC" { print $2 }' "$config_file")
+OBJ=$(awk -F";" '$1== "OBJ" { print $2 }' "$config_file")
+EXEC=$(awk -F";" '$1== "EXEC" { print $2 }' "$config_file")
+PROJECT_DIR=$(awk -F";" '$1== "PROJECT_DIR" { print $2 }' "$config_file")
+SOURCES_DIR=$(awk -F";" '$1== "SOURCES_DIR" { print $2 }' "$config_file")
+CFLAGS=$(awk -F";" '$1== "CFLAGS" { print $2 }' "$config_file")
+LDFLAGS=$(awk -F";" '$1== "LDFLAGS" { print $2 }' "$config_file")
+HEADERS_DIR=$(awk -F";" '$1== "HEADERS_DIR" { print $2 }' "$config_file")
+LIBS_DIR=$(awk -F";" '$1== "LIBS_DIR" { print $2 }' "$config_file")
+BCK_DIR=$(awk -F";" '$1== "BCK_DIR" { print $2 }' "$config_file")
+ZIP=$(awk -F";" '$1== "ZIP" { print $2 }' "$config_file")
+ZIPFLAGS=$(awk -F";" '$1== "ZIPFLAGS" { print $2 }' "$config_file")
+UNZIP=$(awk -F";" '$1== "UNZIP" { print $2 }' "$config_file")
+UNZIPFLAGS=$(awk -F";" '$1== "UNZIPFLAGS" { print $2 }' "$config_file")
+
+makefile_content=$(cat <<EOF
+
+CC = ${CC:-"gcc"}
+
+SRC = \$(wildcard \$(SOURCES_DIR)/*.c)
+
+OBJ = \$(SRC:.c=.o)
+
+EXEC = ${EXEC:-"executable"}
+
+PROJECT_DIR = $PROJECT_DIR
+
+SOURCES_DIR = $SOURCES_DIR
+
+CFLAGS = ${CFLAGS:-"-Wall"}
+
+LDFLAGS = ${LDFLAGS:-""}
+
+HEADERS_DIR = $HEADERS_DIR
+
+LIBS_DIR = $LIBS_DIR
+
+BCK_DIR = $BCK_DIR
+
+ZIP = ${ZIP:-"tar"}
+
+ZIPFLAGS = ${ZIPFLAGS:-"-cvvf"}
+
+UNZIP = ${UNZIP:-"tar"}
+
+UNZIPFLAGS = ${UNZIPFLAGS:-"-xvf"}
+
+VERSION_NUM = ${VERSION_NUM:-"2.40.0"}
+
+all: \$(EXEC)
+
+\$(EXEC): \$(OBJ)
+	\$(CC) -o \$(EXEC) \$(OBJ) -L\$(LIBS_DIR) -I\$(HEADERS_DIR) \$(LDFLAGS) \$(CFLAGS)
+
+clean:
+	rm -f \$(OBJ)
+	rm -f *~
+
+fclean: clean
+	rm -f \$(EXEC)
+
+re: fclean all
+
+archive:
+	\$(ZIP) \$(ZIPFLAGS) \$(BCK_DIR)/archive.tar \$(SRC)
+	@echo "archive.tar file generated."
+
+revert:
+	\$(UNZIP) \$(UNZIPFLAGS) \$(BCK_DIR)/archive.tar
+
+delete:
+	rm -f \$(BCK_DIR)/archive.tar
+
+num:
+	@echo "\$(VERSION_NUM)"
+
+.PHONY: all clean fclean re archive revert delete num
+EOF
+)
+echo "$makefile_content" > "$PROJECT_DIR/Makefile"
+chmod +x "$PROJECT_DIR/Makefile"
